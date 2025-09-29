@@ -1,5 +1,4 @@
-#include <rbtree.h>
-#include <rtree.h>
+#include <trees.h>
 
 
 RBtree *rbtree_create(){

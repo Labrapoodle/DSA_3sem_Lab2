@@ -34,6 +34,7 @@ struct RBtree{
     struct rbnode* nil;
 };
 
+//Red-black tree
 RBtree *rbtree_create();
 void rb_add_fixup(RBtree *T,struct rbnode *z);
 void left_rotate(RBtree *T, struct rbnode *x);
@@ -52,4 +53,15 @@ void rbtree_print_dfs(struct rbnode *root, struct rbnode *nil, int level);
 
 int rbtree_height(struct rbnode *node, struct rbnode *nil);
 
+
+//rtree:
+rtree *rtree_create();
+rtree *rtree_insert(rtree *root,char *key, uint32_t value);
+//rtree *rtree_lookup(rtree *root, char *key);
+//rtree *rtree_delete(rtree *root, char *key);
+void rtree_print(rtree *root, int level);
+
+rtree *get_child(rtree *node, char *literal);
+void set_child(rtree *node, char *literal, rtree *child);
+void rtree_free(rtree *root);
 #endif
