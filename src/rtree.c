@@ -1,5 +1,4 @@
-#include <rbtree.h>
-#include <rtree.h>
+#include <trees.h>
 
 
 
@@ -40,26 +39,32 @@ void set_child(rtree *node, char *literal, rtree *child)
 
 rtree *rtree_insert(rtree *root,char *key, uint32_t value)
 {
-    char *substrStart = key;
-    char *substrEnd = key;
+    char *substrStart = key; //Указывает на первый символ в префиксе
+    char *substrEnd = key; //Указывает на последний символ в префиксе
     rtree *node = root;
 
-    while(*substrEnd!='\0'){
+    while(*substrEnd!='\0')
+    {
         rtree *child = get_child(node,key);
+        int prefixLength = substrEnd-substrStart+1;
+
+        //Поиск наидлиннейшего уже существующего префикса
         while(child!=NULL && *(substrEnd)!='\0') 
         {
             substrEnd++;
-            char subToSearch[substrEnd-substrStart+2];
-            strncpy(subToSearch,key,substrEnd-substrEnd+1);
-            subToSearch[substrEnd-substrStart+1] = '\0';
+            prefixLength = substrEnd-substrStart+1;
+            char subToSearch[prefixLength+1];
+            strncpy(subToSearch,key,prefixLength);
+            subToSearch[prefixLength] = '\0';
             child = get_child(node,subToSearch);
             
         }
         
-        char *keySubStr = (char *)malloc((substrEnd-substrStart+2)*sizeof(char));
-        strncpy(keySubStr,key,substrEnd-substrStart+1);
-        keySubStr[substrEnd-substrStart+1] = '\0';
-        child = get_child(node,keySubStr);
+        
+        char *longestPrefix = (char *)malloc((prefixLength+1)*sizeof(char));
+        strncpy(longestPrefix,key,prefixLength);
+        longestPrefix[prefixLength] = '\0';
+        child = get_child(node,longestPrefix);
 
         
 
@@ -70,8 +75,9 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
             newChild->ifNodeHasValue = noValue;
             newChild->childs = rbtree_create();
             
-            set_child(node,keySubStr,newChild);
+            set_child(node,longestPrefix,newChild);
             node = newChild;
+
         }
         else
         {
@@ -86,13 +92,16 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
             char *keyForChild = (char *)malloc((childStrLength+1)*sizeof(char));
             strncpy(keyForChild,substrEnd+1,childStrLength);
             keyForChild[childStrLength] = '\0';
-            set_child(node,keySubStr,newChild);
+            set_child(node,keyForChild,newChild);
+
+            free(longestPrefix);
         }
                
 
         substrStart = substrEnd;      
 
     }
+    return node;
 }
 
 void rtree_print(rtree *root, int level) {
