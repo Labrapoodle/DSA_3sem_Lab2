@@ -146,6 +146,7 @@ struct rbnode *rbtree_max(struct rbnode *node,struct rbnode *nil){
 }
 
 void rbtree_free(RBtree *T){
+    if(T==NULL) return;
     recursion_free(T->root,T->nil);
     free(T->nil);
     free(T);
@@ -156,7 +157,11 @@ void recursion_free(struct rbnode *tree,struct rbnode *nil){
     recursion_free(tree->left,nil);
     recursion_free(tree->right,nil);
 
-    if(tree->value!=NULL) rtree_free(tree->value);
+    if(tree->value!=NULL)
+    {
+        if(tree->value->childs!=NULL) rbtree_free(tree->value->childs);
+        free(tree->value);
+    }
     if(tree->key!=NULL) free(tree->key);
 
     free(tree);
@@ -280,3 +285,4 @@ int rbtree_height(struct rbnode *node, struct rbnode *nil) {
     int right_height = rbtree_height(node->right, nil);
     return 1 + (left_height > right_height ? left_height : right_height);
 }
+

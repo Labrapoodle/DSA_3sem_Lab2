@@ -33,8 +33,8 @@ void set_child(rtree *node, char *literal, rtree *child)
 {
     
     
-    
-    rbtree_add(node->childs, literal, child);
+    char *s = strdup(literal);
+    rbtree_add(node->childs, s, child);
 }
 
 rtree *rtree_insert(rtree *root,char *key, uint32_t value)
@@ -43,66 +43,176 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
     char *substrEnd = key; //Указывает на последний символ в префиксе
     rtree *node = root;
 
-    while(*substrEnd!='\0')
-    {
-        rtree *child = get_child(node,key);
+    
+
+    //while(*substrEnd!='\0')
+    //{
+         //= get_child(node,key);
+
+        //char oneSymbPrefix[2];
+        //strncpy(oneSymbPrefix,key,1);
+        //oneSymbPrefix[1]='\0'; 
+        //rtree *child = get_child(node,oneSymbPrefix);
+//
+        ////Случай 1: Первый символ ключа не ведёт ни к одному потомку
+        //if(child==NULL)
+        //{
+        //    rtree *newChild = rtree_create();
+        //    newChild->ifNodeHasValue = hasValue;
+        //    
+        //    newChild->value = value;
+        //    set_child(node,key,newChild);
+        //    return newChild;
+        //}
+
         int prefixLength = substrEnd-substrStart+1;
 
         //Поиск наидлиннейшего уже существующего префикса
-        while(child!=NULL && *(substrEnd)!='\0') 
+        rtree *child = NULL;
+        while(*substrEnd!='\0' )
         {
-            substrEnd++;
+                       
+            
             prefixLength = substrEnd-substrStart+1;
             char subToSearch[prefixLength+1];
-            strncpy(subToSearch,key,prefixLength);
+            strncpy(subToSearch,key+(substrStart-key),prefixLength);
             subToSearch[prefixLength] = '\0';
-            child = get_child(node,subToSearch);
+            child = get_child(node,subToSearch);     
             
+            if(child == NULL)
+            {
+                rtree *newChild = rtree_create();
+                newChild->ifNodeHasValue = hasValue;
+                newChild->value = value; 
+            }
+            else
+            {
+                
+
+                struct rbnode *linkByRBT = rbtree_lookup(node->childs->root,node->childs->nil,subToSearch);
+                if(linkByRBT == node->childs->nil) exit;
+
+                if(strstr(key,linkByRBT->key)!= NULL)
+                {
+                    substrEnd = key + strlen(linkByRBT->key);
+                    substrStart = substrEnd;
+                    node = child;
+                }
+                else
+                {
+                    substrEnd++;
+                    substrStart = substrEnd;
+                }
+            }
+        }
+        //Случай 2: длина ключей совпала :
+        if(*(substrEnd)=='\0' && child != NULL)
+        {
+            child->value = value;
+            child->ifNodeHasValue = hasValue;
+                       
+            return NULL;
         }
         
+        substrEnd--;
+        prefixLength = substrEnd-substrStart+1;
         
         char *longestPrefix = (char *)malloc((prefixLength+1)*sizeof(char));
         strncpy(longestPrefix,key,prefixLength);
         longestPrefix[prefixLength] = '\0';
         child = get_child(node,longestPrefix);
+        
+        // Случай 3, префикс вставляем и двигаемся дальше
+        
+        if(child == NULL)
+        {
+            free(longestPrefix);
+            rtree_free(root);
+            printf("Error in insert func, child is null (but it shouldn't)\n");
+            printf("%s\n",key);
+            
+            exit(EXIT_FAILURE);
+        }
+        rtree *newChild = rtree_create();
+        rtree *newForExisting  = rtree_create();
+        newChild->ifNodeHasValue = hasValue;
+        newChild->value = value;
+
+        struct rbnode *link = rbtree_lookup(node->childs->root,node->childs->nil,longestPrefix);
+        char *childKeyPref = strdup(link->key+prefixLength);
+        if(strlen(link->key)==prefixLength)
+        {
+            set_child(child,key+prefixLength,newChild);
+            free(childKeyPref);
+            free(longestPrefix);
+            rtree_free(newForExisting);
+            return newChild;
+            
+        }
+        free(link->key);
+        link->key = strdup(longestPrefix);
 
         
 
-        if(child == NULL)
-        {            
-            rtree *newChild = rtree_create();
-            
-            newChild->ifNodeHasValue = noValue;
-            newChild->childs = rbtree_create();
-            
-            set_child(node,longestPrefix,newChild);
-            node = newChild;
 
+        if(child->ifNodeHasValue==hasValue)
+        {       
+            newForExisting->ifNodeHasValue=hasValue;
+            newForExisting->value = child->value;
+            child->ifNodeHasValue = noValue;    
         }
         else
         {
-            rtree *newChild = rtree_create();
-            
-            newChild->ifNodeHasValue = hasValue;
-            newChild->childs = rbtree_create();
-            newChild->value = value;
-
-            char *ptrOfEnd = strchr(key,'\0');
-            uint32_t childStrLength = ptrOfEnd-substrEnd+1;
-            char *keyForChild = (char *)malloc((childStrLength+1)*sizeof(char));
-            strncpy(keyForChild,substrEnd+1,childStrLength);
-            keyForChild[childStrLength] = '\0';
-            set_child(node,keyForChild,newChild);
-
-            free(longestPrefix);
+            rbtree_free(newForExisting->childs);
+            newForExisting->childs = child->childs;
+            child->childs = rbtree_create();
+        
         }
-               
+        
+        
 
+        
+        
+
+        
+
+        int suffLength = strlen(key)-prefixLength;
+        char *suffix = (char *)malloc((suffLength+1)*sizeof(char)); //abcdef
+        strncpy(suffix,key+prefixLength,suffLength);
+        suffix[suffLength] = '\0';
+
+        set_child(child,childKeyPref,newForExisting);
+        set_child(child, suffix,newChild);
+
+        
+        //set_child(node,longestPrefix,link->value);
+        //node->
+        free(childKeyPref);
+        free(longestPrefix);
+        free(suffix);
+        
+
+        
+        
+        
+        
+        //child = get_child(node,longestPrefix);
+        substrEnd++;  
         substrStart = substrEnd;      
 
-    }
+    //}
+    printf("-----\n");
+    rtree_print(root,0);
+    printf("-----\n");
     return node;
 }
+
+rtree *rtree_lookup(rtree *root, char *key)
+{
+
+    return root;
+}
+
 
 void rtree_print(rtree *root, int level) {
     if (root == NULL) {
@@ -154,14 +264,15 @@ void rtree_print(rtree *root, int level) {
         print_children(root->childs->root, root->childs->nil, level + 1);
     }
 }
+    
 
 void rtree_free(rtree *root){
     if(root == NULL) return;
-    if(root->childs!=NULL)
-    {
-        rbtree_free(root->childs);
-    }
+    if(root->childs!=NULL) rbtree_free(root->childs);
     free(root);
     
+    
+    
 }
+
 

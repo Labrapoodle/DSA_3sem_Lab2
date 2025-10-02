@@ -57,7 +57,7 @@ int rbtree_height(struct rbnode *node, struct rbnode *nil);
 //rtree:
 rtree *rtree_create();
 rtree *rtree_insert(rtree *root,char *key, uint32_t value);
-//rtree *rtree_lookup(rtree *root, char *key);
+rtree *rtree_lookup(rtree *root, char *key);
 //rtree *rtree_delete(rtree *root, char *key);
 void rtree_print(rtree *root, int level);
 
