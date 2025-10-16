@@ -28,13 +28,12 @@ rtree *get_child(rtree *node, char *literal)
     }
 }
 
-
 void set_child(rtree *node, char *literal, rtree *child)
 {
     
     
-    
-    rbtree_add(node->childs, literal, child);
+    char *s = strdup(literal);
+    rbtree_add(node->childs, s, child);
 }
 
 rtree *rtree_insert(rtree *root,char *key, uint32_t value)
@@ -43,63 +42,122 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
     char *substrEnd = key; //Указывает на последний символ в префиксе
     rtree *node = root;
 
-    while(*substrEnd!='\0')
-    {
-        rtree *child = get_child(node,key);
-        int prefixLength = substrEnd-substrStart+1;
+    while(*substrEnd != '\0')
+    {    
+        char oneSymbPrefix[2];
+        strncpy(oneSymbPrefix,substrStart,1);
+        oneSymbPrefix[1]='\0'; 
+        rtree *child = get_child(node,oneSymbPrefix); 
 
-        //Поиск наидлиннейшего уже существующего префикса
-        while(child!=NULL && *(substrEnd)!='\0') 
+        // Случай 1: вставляемое ребро новое -- вставляем весь ключ
+        if(child==NULL)
         {
-            substrEnd++;
-            prefixLength = substrEnd-substrStart+1;
-            char subToSearch[prefixLength+1];
-            strncpy(subToSearch,key,prefixLength);
-            subToSearch[prefixLength] = '\0';
-            child = get_child(node,subToSearch);
-            
-        }
-        
-        
-        char *longestPrefix = (char *)malloc((prefixLength+1)*sizeof(char));
-        strncpy(longestPrefix,key,prefixLength);
-        longestPrefix[prefixLength] = '\0';
-        child = get_child(node,longestPrefix);
-
-        
-
-        if(child == NULL)
-        {            
-            rtree *newChild = rtree_create();
-            
-            newChild->ifNodeHasValue = noValue;
-            newChild->childs = rbtree_create();
-            
-            set_child(node,longestPrefix,newChild);
-            node = newChild;
-
+            //printf("%s\n",substrStart);
+            rtree * newChild = rtree_create();
+            set_child(node,substrStart,newChild);
+            newChild->value=value;
+            newChild->ifNodeHasValue = hasValue;
+            return newChild;
         }
         else
         {
-            rtree *newChild = rtree_create();
-            
-            newChild->ifNodeHasValue = hasValue;
-            newChild->childs = rbtree_create();
-            newChild->value = value;
+            struct rbnode *link = rbtree_lookup(node->childs->root,node->childs->nil,oneSymbPrefix);
 
-            char *ptrOfEnd = strchr(key,'\0');
-            uint32_t childStrLength = ptrOfEnd-substrEnd+1;
-            char *keyForChild = (char *)malloc((childStrLength+1)*sizeof(char));
-            strncpy(keyForChild,substrEnd+1,childStrLength);
-            keyForChild[childStrLength] = '\0';
-            set_child(node,keyForChild,newChild);
+            // Случай 2: вставляемый ключ -- префикс существующего узла
+            if(strncmp(link->key,substrStart,strlen(substrStart))==0)
+            {
+                // Случай 2.5: длины совпадают
+                if(strlen(substrStart)==strlen(link->key))
+                {
+                    link->value->value = value;
+                }
 
-            free(longestPrefix);
+                
+                else
+                {                    
+                    rtree *newChild = rtree_create();  
+                    newChild->ifNodeHasValue = hasValue;
+                    newChild->value = value;
+
+                    char *childSuffix = strstr(link->key,substrStart) + strlen(substrStart);
+                    set_child(newChild,childSuffix,child);
+                    
+
+                    free(link->key);
+                    link->key = strdup(substrStart);
+                    
+                    link->value = newChild;                   
+
+                    return newChild;
+                }
+            }
+
+            //Случай 4: если существующий узел - префикс вставляемого узла
+            else if(strncmp(substrStart,link->key,strlen(link->key))==0)
+            {
+                //printf("\tlink->key:%s\n",link->key);
+                node = child;
+                substrStart += strlen(link->key);
+                substrEnd = substrStart;
+            }
+
+            // Случай 5: поиск общего префикса
+            else
+            {
+                //if(substrEnd==substrStart) substrEnd++;
+                int substrLength = substrEnd-substrStart+2; //+2 т.к. будем вставлять ещё и *(substrEnd+1)
+                if(strcmp(key,"tea")==0)
+                    {
+                        printf("\tdiff %d\n",substrEnd-substrStart);
+                    } 
+                char *substring = (char *)malloc(sizeof(char)*(substrLength+1));
+                strncpy(substring,substrStart,substrLength);
+                substring[substrLength] = '\0';
+                
+                if(get_child(node,substring)!=NULL)
+                {
+                    substrEnd++;
+                    
+                }
+                else
+                {
+                    
+                    substring[substrLength-1] = '\0';
+                    child = get_child(node,substring);
+
+                    rtree *newChild = rtree_create();
+                    char *childSuffix = strstr(link->key,substring) + strlen(substring);
+                                    
+                    set_child(newChild,childSuffix,child);
+
+                    link = rbtree_lookup(node->childs->root,node->childs->nil,substring);
+
+                    
+
+                    free(link->key);
+                    link->key = strdup(substring);
+                    
+                    link->value = newChild;
+                    
+                    
+                    
+                    
+                    
+                    
+                    if(get_child(child,substrEnd+1)!=NULL)
+                    {
+                        
+                        node = child;
+                    }
+                    else
+                    {
+                        node = newChild;
+                    }
+                    substrStart=++substrEnd;
+                }
+                free(substring);
+            }
         }
-               
-
-        substrStart = substrEnd;      
-
     }
     return node;
 }
@@ -154,14 +212,166 @@ void rtree_print(rtree *root, int level) {
         print_children(root->childs->root, root->childs->nil, level + 1);
     }
 }
+    
 
 void rtree_free(rtree *root){
     if(root == NULL) return;
-    if(root->childs!=NULL)
-    {
-        rbtree_free(root->childs);
-    }
+    if(root->childs!=NULL) rbtree_free(root->childs);
     free(root);
+    
+    
     
 }
 
+rtree *rtree_lookup(rtree *root, char *key)
+{
+    
+    char *ptrBegin = key;
+    char *ptrEnd = key;
+    rtree *node = root;
+    
+    while(*ptrEnd!='\0')
+    {
+        rtree *child;
+        char oneSymbStr[2];
+        oneSymbStr[0] = *ptrBegin;
+        oneSymbStr[1] = '\0';
+        child = get_child(node,oneSymbStr);
+
+        if(child == NULL) return NULL;
+        
+        
+        struct rbnode *link = rbtree_lookup(node->childs->root,node->childs->nil,oneSymbStr); 
+        
+        
+        int lengthMinimalKey = (strlen(link->key)<strlen(ptrBegin))?strlen(link->key):strlen(ptrBegin);
+        
+        if(strcmp(link->key,ptrBegin)==0)
+        {
+            if(link->value->ifNodeHasValue==hasValue) return link->value;
+            else return NULL;
+        }
+        else if (strlen(link->key)>=strlen(ptrBegin)) return NULL;
+        else
+        {
+            if(strncmp(ptrBegin,link->key,strlen(link->key))==0)
+            {
+                ptrBegin += strlen(link->key);
+                ptrEnd = ptrBegin;
+                node = child;
+            }
+            else return NULL;
+        }
+    }
+    return node;
+}
+
+rtree *rtree_delete(rtree *root, char *key)
+{
+    rtree *nodeToDelete = rtree_lookup(root,key);
+    if(nodeToDelete == NULL) return NULL;
+
+    char *ptrSearch = key;
+    rtree *node = root;
+    stack *queue = stack_create(strlen(key));
+
+    while(node!=nodeToDelete)
+    {
+        char oneSymbStr[2];
+        oneSymbStr[0] = *ptrSearch;
+        oneSymbStr[1] = '\0';
+
+        rtree *child = get_child(node, oneSymbStr);
+        if(child == nodeToDelete) break;
+
+        struct rbnode *link = rbtree_lookup(node->childs->root,node->childs->nil,oneSymbStr);
+
+        ptrSearch += strlen(key);
+        stack_push(queue,node,link);
+        node = child;      
+    }
+
+    while(queue->top>1)
+    {
+        nodeWithLink *predecessor = stack_pop(queue);
+        
+        char *deletingSuff = strdup(predecessor->link->key);
+        rbtree_delete(predecessor->node->childs,predecessor->link->key);
+
+        // Если у родительского узла нет других детей
+        if(rbtree_height(predecessor->node->childs->root,predecessor->node->childs->nil)==0)
+        {
+            nodeWithLink *beforePredecessor = stack_pop(queue);
+            int newLength = strlen(deletingSuff)+strlen(beforePredecessor->link->key)+1;
+            char *grandPref = (char *)malloc(sizeof(char)*newLength);
+            
+            strncpy(grandPref,beforePredecessor->link->key,strlen(beforePredecessor->link->key));
+            grandPref[strlen(beforePredecessor->link->key)] = '\0';
+            strcat(grandPref,deletingSuff);
+            free(beforePredecessor->link->key);
+            beforePredecessor->link->key = grandPref;
+
+            if(predecessor->node->ifNodeHasValue == hasValue)
+            {
+                if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)!=0)
+                { 
+                    rbtree_copy(predecessor->node->childs,nodeToDelete->childs);
+                }
+                free(deletingSuff);
+                
+                stack_free(queue);
+                return nodeToDelete;
+            }
+            else
+            {
+                nodeToDelete = predecessor->node;
+                queue->top++;
+            }
+            
+            
+            
+        }
+        // Если у родительского узла есть другие дети
+        else
+        {
+            if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)!=0)
+            {
+                nodeToDelete->ifNodeHasValue = noValue;
+                RBtree *childs = nodeToDelete->childs;
+                if(rbtree_height(childs->root,childs->nil)==1)
+                {
+                    if(childs->root->left==childs->nil && childs->root->right!=childs->nil)
+                    {
+                        deletingSuff = realloc(deletingSuff,sizeof(char)*(strlen(deletingSuff)+strlen(childs->root->right->key)+1));
+                        strcat(deletingSuff,childs->root->right->key);
+                        deletingSuff[strlen(deletingSuff)]='\0';
+                        set_child(predecessor->node,deletingSuff,childs->root->right->value);
+                    }
+                    else if(childs->root->left!=childs->nil && childs->root->right==childs->nil)
+                    {
+                        deletingSuff = realloc(deletingSuff,sizeof(char)*(strlen(deletingSuff)+strlen(childs->root->left->key)+1));
+                        strcat(deletingSuff,childs->root->left->key);
+                        deletingSuff[strlen(deletingSuff)]='\0';
+                        set_child(predecessor->node,deletingSuff,childs->root->left->value);
+                    }
+                    
+                }
+                free(deletingSuff);
+                stack_free(queue);
+                return nodeToDelete;
+            }
+            else
+            {
+                free(deletingSuff);
+                stack_free(queue);
+                return nodeToDelete;
+            }
+
+        }
+
+        
+        free(deletingSuff);
+    }
+    stack_free(queue);
+    return nodeToDelete;
+}
