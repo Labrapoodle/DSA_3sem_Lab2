@@ -192,6 +192,7 @@ void recursion_free(struct rbnode *tree,struct rbnode *nil)
 struct rbnode *rbtree_delete(RBtree *T, char *key)
 {
     struct rbnode *z = rbtree_lookup(T->root,T->nil,key);
+    
     struct rbnode *x,*y =z;
     char y_orig_color = y->color;
     if(z->left == T->nil)
@@ -221,7 +222,10 @@ struct rbnode *rbtree_delete(RBtree *T, char *key)
         y->left->parent = y;
         y->color = z->color;
     }
+    
     if(y_orig_color==1) rb_delete_fixup(T,x);
+    
+    free(z->key);
     free(z);
     return y;
 }

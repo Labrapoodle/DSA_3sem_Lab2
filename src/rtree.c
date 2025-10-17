@@ -83,10 +83,13 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
                     set_child(newChild,childSuffix,child);
                     
 
-                    free(link->key);
-                    link->key = strdup(substrStart);
+                    link->value = NULL;
+                    rbtree_delete(node->childs,link->key);
+                    set_child(node,substrStart,newChild);
+                    //free(link->key);
+                    //link->key = strdup(substrStart);
                     
-                    link->value = newChild;                   
+                    //link->value = newChild;                   
 
                     return newChild;
                 }
@@ -132,12 +135,14 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
 
                     link = rbtree_lookup(node->childs->root,node->childs->nil,substring);
 
+                    //rtree *valueBuffer = link->value;                    
+                    link->value=NULL;
+                    rbtree_delete(node->childs,link->key);
+                    set_child(node,substring,newChild);
+                    //free(link->key);
+                    //link->key = strdup(substring);
                     
-
-                    free(link->key);
-                    link->key = strdup(substring);
-                    
-                    link->value = newChild;
+                    //link->value = newChild;
                     
                     
                     
@@ -268,110 +273,90 @@ rtree *rtree_lookup(rtree *root, char *key)
 
 rtree *rtree_delete(rtree *root, char *key)
 {
+
     rtree *nodeToDelete = rtree_lookup(root,key);
     if(nodeToDelete == NULL) return NULL;
+    nodeWithLink pair = {NULL,NULL};
+    struct rbnode *preLink = NULL;
+    rtree *preNode = NULL;
 
     char *ptrSearch = key;
     rtree *node = root;
-    stack *queue = stack_create(strlen(key));
+    //stack *queue = stack_create(strlen(key));
 
-    while(node!=nodeToDelete)
+    while(node!=nodeToDelete && *ptrSearch!='\0')
     {
         char oneSymbStr[2];
         oneSymbStr[0] = *ptrSearch;
         oneSymbStr[1] = '\0';
 
         rtree *child = get_child(node, oneSymbStr);
-        if(child == nodeToDelete) break;
+        //if(child == nodeToDelete) break;
 
         struct rbnode *link = rbtree_lookup(node->childs->root,node->childs->nil,oneSymbStr);
+        
+        
 
-        ptrSearch += strlen(key);
-        stack_push(queue,node,link);
-        node = child;      
+        
+        ptrSearch += strlen(link->key);
+        if(pair.node!=NULL) preNode = pair.node;
+        pair.node = node;
+        
+        if(pair.link!=NULL) preLink = pair.link;
+        pair.link = link;
+        
+        
+        node = child;
+              
     }
 
-    while(queue->top>1)
+
+    if(pair.node==NULL || pair.link==NULL) return NULL;
+
+
+    if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)==0)
     {
-        nodeWithLink *predecessor = stack_pop(queue);
-        
-        char *deletingSuff = strdup(predecessor->link->key);
-        rbtree_delete(predecessor->node->childs,predecessor->link->key);
+        pair.link->value=NULL;
+        rbtree_delete(pair.node->childs,pair.link->key);
 
-        // Если у родительского узла нет других детей
-        if(rbtree_height(predecessor->node->childs->root,predecessor->node->childs->nil)==0)
+
+        // Если у родителя остался один потомок и в родителе нет значения -- объединяем ключи до родителя и до племянника
+        if(preLink!=NULL 
+            && rbtree_height(pair.node->childs->root,pair.node->childs->nil)==1
+            && pair.node->ifNodeHasValue==noValue)
         {
-            nodeWithLink *beforePredecessor = stack_pop(queue);
-            int newLength = strlen(deletingSuff)+strlen(beforePredecessor->link->key)+1;
-            char *grandPref = (char *)malloc(sizeof(char)*newLength);
             
-            strncpy(grandPref,beforePredecessor->link->key,strlen(beforePredecessor->link->key));
-            grandPref[strlen(beforePredecessor->link->key)] = '\0';
-            strcat(grandPref,deletingSuff);
-            free(beforePredecessor->link->key);
-            beforePredecessor->link->key = grandPref;
+            struct rbnode *linkToNephew = NULL;
+            if(pair.node->childs->root != NULL && pair.node->childs->root!= pair.node->childs->nil) linkToNephew = pair.node->childs->root;
 
-            if(predecessor->node->ifNodeHasValue == hasValue)
+            if(linkToNephew!=NULL && preNode!=NULL)
             {
-                if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)!=0)
-                { 
-                    rbtree_copy(predecessor->node->childs,nodeToDelete->childs);
-                }
-                free(deletingSuff);
+                int lengthNewLink = (strlen(linkToNephew->key)+strlen(preLink->key)+1);
+                char *newLinkKey = (char *)malloc(sizeof(char)*lengthNewLink);
+                strncpy(newLinkKey,preLink->key,strlen(preLink->key)+1);
+                strcat(newLinkKey,linkToNephew->key);
+                preLink->value = NULL;
+                rbtree_delete(preNode->childs,preLink->key);
+                set_child(preNode,newLinkKey,linkToNephew->value);
+
+
+                linkToNephew->value=NULL;
+
+
+
+                rbtree_delete(pair.node->childs,linkToNephew->key);
                 
-                stack_free(queue);
-                return nodeToDelete;
-            }
-            else
-            {
-                nodeToDelete = predecessor->node;
-                queue->top++;
-            }
-            
-            
-            
-        }
-        // Если у родительского узла есть другие дети
-        else
-        {
-            if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)!=0)
-            {
-                nodeToDelete->ifNodeHasValue = noValue;
-                RBtree *childs = nodeToDelete->childs;
-                if(rbtree_height(childs->root,childs->nil)==1)
-                {
-                    if(childs->root->left==childs->nil && childs->root->right!=childs->nil)
-                    {
-                        deletingSuff = realloc(deletingSuff,sizeof(char)*(strlen(deletingSuff)+strlen(childs->root->right->key)+1));
-                        strcat(deletingSuff,childs->root->right->key);
-                        deletingSuff[strlen(deletingSuff)]='\0';
-                        set_child(predecessor->node,deletingSuff,childs->root->right->value);
-                    }
-                    else if(childs->root->left!=childs->nil && childs->root->right==childs->nil)
-                    {
-                        deletingSuff = realloc(deletingSuff,sizeof(char)*(strlen(deletingSuff)+strlen(childs->root->left->key)+1));
-                        strcat(deletingSuff,childs->root->left->key);
-                        deletingSuff[strlen(deletingSuff)]='\0';
-                        set_child(predecessor->node,deletingSuff,childs->root->left->value);
-                    }
-                    
-                }
-                free(deletingSuff);
-                stack_free(queue);
-                return nodeToDelete;
-            }
-            else
-            {
-                free(deletingSuff);
-                stack_free(queue);
-                return nodeToDelete;
-            }
 
-        }
+                rtree_free(pair.node);
 
-        
-        free(deletingSuff);
+            }
+        }
     }
-    stack_free(queue);
+    else
+    {
+        nodeToDelete->ifNodeHasValue = noValue;
+    }
+    
+    
     return nodeToDelete;
 }

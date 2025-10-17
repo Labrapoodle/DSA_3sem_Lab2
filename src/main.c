@@ -2,7 +2,7 @@
 
 int main(){
     char *test_words[] = {
-    "test", "team", "tea", NULL
+    "test", "team", "lion", NULL
 };
     rtree *trie = rtree_create();
 
@@ -15,9 +15,15 @@ int main(){
         //printf("\n");
     }
     
-    rtree *found = rtree_lookup(trie,"te");
-    if(found==NULL) printf("found is NULL\n");
-    else printf("found: %d\n",found->value);
+    rtree_print(trie,0);
+    printf("-----\n");
+
+    rtree *res = rtree_delete(trie,"test");
+    if(res==NULL) printf("res is NULL");
+    else if(res->ifNodeHasValue==hasValue) rtree_free(res);
+    
+
+    
 
     rtree_print(trie,0);
     rtree_free(trie);
