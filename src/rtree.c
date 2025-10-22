@@ -109,10 +109,7 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
             {
                 //if(substrEnd==substrStart) substrEnd++;
                 int substrLength = substrEnd-substrStart+2; //+2 т.к. будем вставлять ещё и *(substrEnd+1)
-                if(strcmp(key,"tea")==0)
-                    {
-                        printf("\tdiff %d\n",substrEnd-substrStart);
-                    } 
+                
                 char *substring = (char *)malloc(sizeof(char)*(substrLength+1));
                 strncpy(substring,substrStart,substrLength);
                 substring[substrLength] = '\0';
@@ -346,7 +343,7 @@ rtree *rtree_delete(rtree *root, char *key)
 
                 rbtree_delete(pair.node->childs,linkToNephew->key);
                 
-
+                free(newLinkKey);
                 rtree_free(pair.node);
 
             }
@@ -356,7 +353,7 @@ rtree *rtree_delete(rtree *root, char *key)
     {
         nodeToDelete->ifNodeHasValue = noValue;
     }
-    
+    //rtree_delete
     
     return nodeToDelete;
 }
