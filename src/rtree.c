@@ -164,55 +164,65 @@ rtree *rtree_insert(rtree *root,char *key, uint32_t value)
     return node;
 }
 
-void rtree_print(rtree *root, int level) {
-    if (root == NULL) {
-        return;
-    }
+void print_rtree_node(struct rbnode* node, struct RBtree* tree, int depth, const char* prefix, int is_last) {
+    if (node == tree->nil) return;
     
-    // Отступ для уровня
-    for (int i = 0; i < level; i++) {
-        printf("  ");
-    }
+    // Вывод текущего узла
+    printf("%s", prefix);
+    printf(is_last ? "└── " : "├── ");
     
-    // Информация о текущем узле
-    printf("Node: ");
-    if (root->ifNodeHasValue == hasValue) {
-        printf("VALUE=%u", root->value);
+    if (node->key[0] != '\0') {
+        printf("(%s)", node->key);
     } else {
-        printf("INTERNAL");
+        printf("[]");
     }
     
-    // Информация о количестве детей
-    if (root->childs != NULL && root->childs->root != root->childs->nil) {
-        printf(" [children present]");
-    } else {
-        printf(" [no children]");
+    // Если у узла есть значение, выводим его
+    if (node->value->ifNodeHasValue) {
+        printf(" [%u $]", node->value->value);
     }
     printf("\n");
     
-    // Рекурсивно печатаем детей
-    if (root->childs != NULL) {
-        // Функция для обхода RBtree
-        void print_children(struct rbnode *node, struct rbnode *nil, int lvl) {
-            if (node == nil) return;
-            
-            print_children(node->left, nil, lvl);
-            
-            for (int i = 0; i < lvl; i++) printf("  ");
-            printf("Child key: \"%s\" -> ", node->key ? node->key : "(null)");
-            
-            if (node->value != NULL) {
-                printf("\n");
-                rtree_print(node->value, lvl + 1);
-            } else {
-                printf("NULL\n");
-            }
-            
-            print_children(node->right, nil, lvl);
-        }
+    // Формируем префикс для дочерних узлов
+    char new_prefix[256];
+    strcpy(new_prefix, prefix);
+    strcat(new_prefix, is_last ? "    " : "│   ");
+    
+    // Рекурсивный обход дочерних узлов
+    if (node->value->childs != NULL && node->value->childs->root != node->value->childs->nil) {
+        // Находим все дочерние узлы в RBtree
+        struct rbnode* current = node->value->childs->root;
+        struct rbnode** stack = malloc(100 * sizeof(struct rbnode*));
+        int stack_size = 0;
         
-        print_children(root->childs->root, root->childs->nil, level + 1);
+        // In-order traversal для получения узлов в порядке возрастания
+        while (stack_size > 0 || current != node->value->childs->nil) {
+            if (current != node->value->childs->nil) {
+                stack[stack_size++] = current;
+                current = current->left;
+            } else {
+                current = stack[--stack_size];
+                
+                // Выводим дочерний узел
+                int is_last_child = (current->right == node->value->childs->nil);
+                print_rtree_node(current, node->value->childs, depth + 1, new_prefix, is_last_child);
+                
+                current = current->right;
+            }
+        }
+        free(stack);
     }
+}
+
+// Функция для печати всего дерева
+void print_rtree(struct RBtree* tree) {
+    if (tree == NULL || tree->root == tree->nil) {
+        printf("Empty tree\n");
+        return;
+    }
+    
+    printf("Tree structure:\n");
+    print_rtree_node(tree->root, tree, 0, "", 0);
 }
     
 

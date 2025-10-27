@@ -75,7 +75,8 @@ rtree *rtree_create();
 rtree *rtree_insert(rtree *root,char *key, uint32_t value);
 rtree *rtree_lookup(rtree *root, char *key);
 rtree *rtree_delete(rtree *root, char *key);
-void rtree_print(rtree *root, int level);
+void print_rtree(struct RBtree* tree);
+void print_rtree_node(struct rbnode* node, struct RBtree* tree, int depth, const char* prefix, int is_last);
 
 rtree *get_child(rtree *node, char *literal);
 void set_child(rtree *node, char *literal, rtree *child);
