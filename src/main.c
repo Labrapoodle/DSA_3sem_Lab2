@@ -19,9 +19,14 @@ return (double)rand() / (RAND_MAX + 1.0) * (max - min) + min;
 
 int main(){
     char *words_array[] = {
-        "test",
-        "tea",
-        "team",
+        
+        "forest",
+        "for",
+        
+        "fort",
+        "f",
+        "forever",
+        "fo",
         NULL
     };
     
@@ -39,7 +44,7 @@ int main(){
     }
     
     
-
+    rtree_delete(trie,"fo");
     
     //if(res==NULL) printf("res is NULL\n");
     //else if(res->ifNodeHasValue==hasValue) rtree_free(res);

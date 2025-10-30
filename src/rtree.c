@@ -357,11 +357,33 @@ rtree *rtree_delete(rtree *root, char *key)
                 rtree_free(pair.node);
 
             }
+
+            
         }
     }
     else
     {
         nodeToDelete->ifNodeHasValue = noValue;
+        if(rbtree_height(nodeToDelete->childs->root,nodeToDelete->childs->nil)==1)
+        {
+            
+            
+            char *newKey = (char *)malloc(sizeof(char)*(strlen(pair.link->key)+
+                strlen(nodeToDelete->childs->root->key)+1));
+            strncpy(newKey,pair.link->key,strlen(pair.link->key)+1);
+            newKey[strlen(pair.link->key)] = '\0';
+            strcat(newKey,nodeToDelete->childs->root->key);
+
+            rbtree_delete(pair.node->childs, pair.link->key);
+
+            set_child(pair.node, newKey, nodeToDelete->childs->root->value);
+            //free(pair.link->key);
+
+            
+
+            free(newKey);
+
+        }
     }
     //rtree_delete
     
